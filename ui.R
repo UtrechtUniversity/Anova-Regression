@@ -126,56 +126,76 @@ ui <- dashboardPage(
       tabItem(
         tabName = "tab1",
         
-### Step 1 Predictor #####
+### input / settings #####
         
 box(width = 12, align = "center",
     h4("ANOVA = Regression"),
     column(12, align = "left", h5("Continuous outcome, categorical predictor")),
-    column(12, align = "left", h4("Step 1: Predictor")),
+    column(12, align = "left", h4("Input / settings")),
     
     fluidRow(
       column(width = 3,
              numericInput("Ngroups", "Number of groups", value = 2, min = 2, max = 4, step = 1)
       ),
-      column(width = 3, offset = 1,
+      column(width = 3,
              uiOutput("refGroupUI")
-      )
+      ),
+    column(width = 3,
+           selectInput("selectHyp", "True in the population", choices = c("H0" = 1, "Ha, small effect" = 2, "Ha, medium effect" = 3, "Ha, large effect" = 4))
+    ),
+    column(width = 3,
+           numericInput("sampleSize", "Sample size per group", value = 20)
+    )),
+    column(width = 12, align = "center",
+           actionButton("sample", "Sample data")
     )
 ),
 
-##### Step 2a Hypotheses #####
-        column(width = 6, align = "center", h4("Regression")),
-        column(width = 6, align = "center", h4("ANOVA")),
-        column(width = 6, align = "center", textOutput("modelR")),
-        column(width = 6, align = "center", textOutput("modelA")),
-        column(width = 3, align = "center", textOutput("H0R")),
-        column(width = 3, align = "center", h5("Ha: Not H0")),
-        column(width = 3, align = "center", textOutput("H0A")),
-        column(width = 3, align = "center", h5("Ha: Not H0")),
+### Tab within page setup #####
+tabsetPanel(
+  tabPanel("Data",
+           radioButtons("dataForm", "Data format", choices = c("Group coding" = 1, "Dummy coding" = 2)),
+           column(12, tableOutput("dataTab"))),
+  tabPanel("Plot",
+           fluidRow(
+             column(width = 6, align = "center", plotOutput("regPlot")),
+             column(width = 6, align = "center", plotOutput("aovPlot"))
+           )),
+  tabPanel("Output",
+           fluidRow(
+             column(width = 6, align = "center", textOutput("regSum")),
+             column(width = 6, align = "center", textOutput("aovSum"))
+           )),
+  tabPanel("Hypotheses",
+           fluidRow(
+             column(width = 3, align = "center", textOutput("H0R")),
+             column(width = 3, align = "center", h5("Ha: Not H0")),
+             column(width = 3, align = "center", textOutput("H0A")),
+             column(width = 3, align = "center", h5("Ha: Not H0"))
+           ))
+),
+
+### MODEL equation fixed at bottom
+box(width = 12, 
+    column(width = 6, align = "center", h4("Regression")),
+    column(width = 6, align = "center", h4("ANOVA")),
+    column(width = 6, align = "center", textOutput("modelR")),
+    column(width = 6, align = "center", textOutput("modelA")),
+    textOutput("TextGroup"),
+    textOutput("TextModelAbs"),
+    textOutput("TextModelNum"))
+
+# ##### Step 2a Hypotheses #####
+
 
  
 ##### Step 2 Data sampling #####       
-        box(width = 12, align = "left",
-          h4("Step 2: Data"),
-          column(width = 3,
-                 selectInput("selectHyp", "Sample from hypothesis", choices = c("H0" = 1, "Ha" = 2))
-          ),
-        column(width = 3, offset = 1,
-               uiOutput("efSizeUI")),
-        column(width = 3, offset = 1,
-               numericInput("sampleSize", "Sample size", value = 20)
-        ),
-        column(width = 12, align = "center",
-               actionButton("sample", "Sample data")
-        )
-        ),
+
 
 ##### Step 3 Output #####        
-        column(width = 6, align = "center", plotOutput("regPlot")),
-        column(width = 6, align = "center", plotOutput("aovPlot")),
 
-        column(width = 6, align = "center", textOutput("regSum")),
-        column(width = 6, align = "center", textOutput("aovSum"))
+
+
       #   
       # ),
       # tabItem(tabName = "tab2", box(

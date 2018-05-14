@@ -2,18 +2,48 @@ library(ggplot2)
 library(tidyr)
 library(dplyr)
 
-efsizes <- c(.2,.5,.8, 0)
+efsizes <- c(0, .2,.5,.8)
 server <- function(input, output) {
   
-# Step 1 Predictor #####
+##### Input / output #####
   
-  Ngroups <- reactive({as.numeric(input$Ngroups)})
+Ngroups <- reactive({as.numeric(input$Ngroups)})
 
-  output$refGroupUI <- renderUI({
-    selectInput("refGroup", "Reference group", choices = 1:Ngroups())
-  })
+output$refGroupUI <- renderUI({
+  selectInput("refGroup", "Reference group", choices = 1:Ngroups())
+})
   
-  refGroup <- reactive({as.numeric(input$refGroup)})
+refGroup <- reactive({as.numeric(input$refGroup)})
+
+truePop <- reactive({as.numeric(input$selectHyp)})
+
+sampSize <- reactive({as.numeric(input$sampleSize)})
+  
+data <- eventReactive(input$sample, {
+  set.seed(123+input$sample)
+  means <- rep(seq(0, by = efsizes[truePop()], length.out = Ngroups()), each = sampSize())
+  score <- rnorm(sampSize()*Ngroups(), means, 1)
+  group <- rep(1:Ngroups(), each = sampSize())
+  data.frame(score = score, group = factor(group))
+  })
+
+dataDumm <- reactive({
+  x <- cbind("score" = data()[,1], model.matrix(~group-1, data()))
+  data.frame(x)
+})
+
+##### Data tab #####
+
+dataFormat <- reactive({as.numeric(input$dataForm)})
+
+
+## data tab for data() doesnt work!
+output$dataTab <- renderTable({
+  if(is.null(input$sample)){NULL}
+  if(dataFormat() == 1){data()}
+  if(dataFormat() == 2){dataDumm()[,-(refGroup()+1)]}
+})
+
 
 # Step 2a Hypotheses #####
 
@@ -41,27 +71,6 @@ server <- function(input, output) {
 
 # Step 2 Sample data ----
 
-  trueHyp <- reactive({as.numeric(input$selectHyp)})
-
-  output$efSizeUI <- renderUI({
-    if(trueHyp() == 1){NULL}
-    if(trueHyp() == 2){selectInput("efSize", "Effect size", choices = c("small" = 1, "medium" = 2, "large"= 3))}
-  })
-  
-  efsize <- reactive({
-    if(trueHyp() == 1){4}else{
-      as.numeric(input$efSize)}
-  })
-  
-  sampSize <- reactive({as.numeric(input$sampleSize)})
-  
-  data <- eventReactive(input$sample, {
-    set.seed(123+input$sample)
-    means <- rep(seq(0, by = efsizes[efsize()], length.out = Ngroups()), each = sampSize())
-    score <- rnorm(sampSize()*Ngroups(), means, 1)
-    group <- rep(1:Ngroups(), each = sampSize())
-    data.frame(score = score, group = factor(group))
-  })
 
 # Step 3 Output #####
  
