@@ -1,31 +1,51 @@
-##### Loading packages ##########################
+##################### Loading packages ##########################
 
-# install.packages("shiny")
-require("shiny")
+library(shiny)
+library(shinydashboard)
+library(DT)
+library(ggplot2)
+library(tidyr)
+library(dplyr)
+library(RColorBrewer)
+library(gridExtra)
+library(highlightHTML)
+library(pander)
+library(markdown)
+library(stringr)
 
-# install.packages("shinydashboard")
-library("shinydashboard")
 
+uu_color <- " #ffcd00"
 
-#####
+##################################################################
+
 
 ui <- dashboardPage(
 # Appearance I #####
     skin = "black",
   
-  dashboardHeader(title = "ANOVA = REGRESSION", titleWidth = 350),
-# Dashboard #####
-  dashboardSidebar(
-    width = 350,
-    sidebarMenu(
-      menuItem("", tabName = "home", icon = icon("home")),
-      menuItem("ANOVA = Regression", tabName = "tab1"),
-      menuItem("add 2nd tab name", tabName = "tab2"),
-      menuItem("add 3rd tab name", tabName = "tab3"),
-      menuItem("Disclaimer", tabName = "Disclaimer"),
-      HTML("<br><br><br><br><br><br><br><br><br><br><br><br><br><br>"),
-      img(src = 'cm_hs_uu-logoengels_diapositief_rgb.png', align = "left")
-      ### you can easily add extra tabs by including an extra "menuItem("...", tabName = "")," before the disclaimer ###
+dashboardHeader(title = "ANOVA and Regression equivalence", titleWidth = 350),
+dashboardSidebar(width = 350,
+                 sidebarMenu(
+                   menuItem("ANOVA = Regression", tabName = "tab1"),
+                   menuItem("Disclaimer", tabName = "Disclaimer"),
+                   HTML("<br><br><br><br><br><br><br><br><br><br><br><br><br><br>"),
+                   img(src = 'cm_hs_uu-logoengels_diapositief_rgb.png', align = "left"),
+                   HTML("<br>"),
+                   
+                   div("Shiny app by",
+                       a(href="https://www.uu.nl/staff/FKlaassen/0",
+                         target = "_blank",
+                         "Fayette Klaassen"),align="left", style = "font-size: 10pt"),
+                   
+                   div("Base Layout by",
+                       a(href="https://www.uu.nl/medewerkers/KMLek/0",target="_blank",
+                         "Kimberley Lek"),align="left", style = "font-size: 10pt"),
+                   
+                   div("Shiny source files:",
+                       a(href="https://github.com/EducationalShinyUU/ANOVA-Regression",
+                         target="_blank","GitHub"),align="left", style = "font-size: 10pt")
+                  
+     ### you can easily add extra tabs by including an extra "menuItem("...", tabName = "")," before the disclaimer ###
       ### you can remove or add <br> statements in the HTML function (menuItem("Disclaimer")) to adjust the position of the UU logo (make sure it is approximately at the bottom of the screen when opened)
     )
   ),
@@ -33,16 +53,16 @@ ui <- dashboardPage(
 # Appearance II #####  
   dashboardBody(
     # CSS styles
-    tags$style(HTML(".irs-bar {background: #EAC626}")),
+    tags$style(HTML(".irs-bar {background: uu_color}")),
     tags$style(HTML(".irs-bar {border-top: 1px solid black}")),
-    tags$style(HTML(".irs-bar-edge {background: #EAC626}")),
+    tags$style(HTML(".irs-bar-edge {background: uu_color}")),
     tags$style(HTML(".irs-bar-edge {border: 1px solid black}")),
-    tags$style(HTML(".irs-single {background: #EAC626}")),
+    tags$style(HTML(".irs-single {background: uu_color}")),
     tags$style(HTML(
-      ".selectize-input {border-color: #EAC626}"
+      ".selectize-input {border-color: uu_color}"
     )),
     tags$style(HTML(
-      ".selectize-dropdown {border-color: #EAC626}"
+      ".selectize-dropdown {border-color: uu_color}"
     )),
     
     ### note that #EAC626 is the mustard yellow color used in the sidebar. ###
@@ -51,34 +71,34 @@ ui <- dashboardPage(
     tags$head(tags$style(
       HTML(
         '.skin-black .main-header .logo {
-        background-color: #EAC626;
+        background-color: ',  uu_color, ';
         }
         .skin-black .main-header .logo:hover {
-        background-color: #EAC626;
+        background-color: ',  uu_color, ';
         }
         
         /* active selected tab in the sidebarmenu */
         .skin-black .main-sidebar .sidebar .sidebar-menu .active a{
-        background-color: #EAC626;
+        background-color: ',  uu_color, ';
         }
         
         /* navbar (rest of the header) */
         .skin-black .main-header .navbar {
-        background-color: #EAC626;
+        background-color: ',  uu_color, ';
         }
         
         /* toggle button when hovered  */
         .skin-black .main-header .navbar .sidebar-toggle:hover{
-        background-color: #EAC626;
+        background-color: ',  uu_color, ';
         }
         
         /* other links in the sidebarmenu when hovered */
         .skin-black .main-sidebar .sidebar .sidebar-menu a:hover{
-        background-color: #EAC626;
+        background-color: ',  uu_color, ';
         }
         /* other links in the sidebarmenu */
         .skin-black .main-sidebar .sidebar .sidebar-menu a{
-        background-color: #EAC626;
+        background-color: ',  uu_color, ';
         color: #000000;
         }
         
@@ -88,7 +108,7 @@ ui <- dashboardPage(
         color: #FFFFFF;
         }
         
-        .skin-black .main-sidebar {color: #000000; background-color: #EAC626;}
+        .skin-black .main-sidebar {color: #000000; background-color: ',  uu_color, ';}
         
         '
       )
@@ -116,12 +136,12 @@ ui <- dashboardPage(
           )
         )
       )),
-      tabItem(tabName = "home", box(
-        width = 12,
-        align = "center",
-        h4("Welcome"),
-        column(12, align = "left", h5("add app background info"))
-      )),
+      # tabItem(tabName = "home", box(
+      #   width = 12,
+      #   align = "center",
+      #   h4("Welcome"),
+      #   column(12, align = "left", h5("add app background info"))
+      # )),
 ## Tab 1 AOV = REG #####      
       tabItem(
         tabName = "tab1",
@@ -130,49 +150,44 @@ ui <- dashboardPage(
         
 box(width = 12, align = "center",
     h4("ANOVA = Regression"),
-    column(12, align = "left", h5("Continuous outcome, categorical predictor")),
     column(12, align = "left", h4("Input / settings")),
     
     fluidRow(
-      column(width = 3,
-             numericInput("Ngroups", "Number of groups", value = 2, min = 2, max = 4, step = 1)
+      column(width = 4, align = "left",
+             radioButtons("Ngroups", "Number of groups", choices = c("2" = 2, "3" = 3, "4" = 4))
       ),
-      column(width = 3,
+      column(width = 4, align = "left", 
              uiOutput("refGroupUI")
       ),
-    column(width = 3,
-           selectInput("selectHyp", "True in the population", choices = c("H0" = 1, "Ha, small effect" = 2, "Ha, medium effect" = 3, "Ha, large effect" = 4))
-    ),
-    column(width = 3,
-           numericInput("sampleSize", "Sample size per group", value = 20)
-    )),
-    column(width = 12, align = "center",
-           actionButton("sample", "Sample data")
-    )
+      column(width = 4, align = "left",
+             actionButton("sample", "Different sample"))
+    # column(width = 3,
+    #        selectInput("selectHyp", "True in the population", choices = c("H0" = 1, "Ha, small effect" = 2, "Ha, medium effect" = 3, "Ha, large effect" = 4))
+    # ),
+    # column(width = 3,
+    #        selectInput("sampleSize", "Sample size per group", choices = c("10" = 10, "20" = 20, "60" = 60, "100" = 100))
+    # )),
+    # column(width = 12, align = "center",
+    #        actionButton("sample", "Sample data")
+     )
 ),
 
 ### Tab within page setup #####
 tabsetPanel(
   tabPanel("Data",
-           radioButtons("dataForm", "Data format", choices = c("Group coding" = 1, "Dummy coding" = 2)),
-           column(12, tableOutput("dataTab"))),
+           box(width = 3, align = "left", radioButtons("dataForm", "Data format", choices = c("Group coding" = 1, "Dummy coding" = 2))),
+           uiOutput("dataTab")),
   tabPanel("Plot",
-           fluidRow(
-             column(width = 6, align = "center", plotOutput("regPlot")),
-             column(width = 6, align = "center", plotOutput("aovPlot"))
-           )),
+plotOutput("Plots")),
   tabPanel("Output",
            fluidRow(
              column(width = 6, align = "center", textOutput("regSum")),
              column(width = 6, align = "center", textOutput("aovSum"))
-           )),
-  tabPanel("Hypotheses",
-           fluidRow(
-             column(width = 3, align = "center", textOutput("H0R")),
-             column(width = 3, align = "center", h5("Ha: Not H0")),
-             column(width = 3, align = "center", textOutput("H0A")),
-             column(width = 3, align = "center", h5("Ha: Not H0"))
            ))
+  # tabPanel("Hypotheses",
+  #          fluidRow(
+  #            column(width = 3, align = "center", textOutput("H0R")),
+  #            column(width = 3, align = "center", textOutput("H0A"))           ))
 ),
 
 ### MODEL equation fixed at bottom
