@@ -30,7 +30,7 @@ dashboardSidebar(width = 350,
                    menuItem("Disclaimer", tabName = "Disclaimer"),
                    HTML("<br><br><br><br><br><br><br><br><br><br><br><br><br><br>"),
                    img(src = 'cm_hs_uu-logoengels_diapositief_rgb.png', align = "left"),
-                   HTML("<br>"),
+                   HTML("<br><br><br><br><br><br><br><br><br><br><br><br><br><br>"),
                    
                    div("Shiny app by",
                        a(href="https://www.uu.nl/staff/FKlaassen/0",
@@ -148,58 +148,51 @@ dashboardSidebar(width = 350,
         
 ### input / settings #####
         
-box(width = 12, align = "center",
+box(width = 13, align = "center",
     h4("ANOVA = Regression"),
     column(12, align = "left", h4("Input / settings")),
     
     fluidRow(
-      column(width = 4, align = "left",
+      column(width = 3, align = "left",
              radioButtons("Ngroups", "Number of groups", choices = c("2" = 2, "3" = 3, "4" = 4))
       ),
-      column(width = 4, align = "left", 
+      column(width = 3, align = "left", 
              uiOutput("refGroupUI")
       ),
-      column(width = 4, align = "left",
-             actionButton("sample", "Different sample"))
-    # column(width = 3,
-    #        selectInput("selectHyp", "True in the population", choices = c("H0" = 1, "Ha, small effect" = 2, "Ha, medium effect" = 3, "Ha, large effect" = 4))
-    # ),
-    # column(width = 3,
-    #        selectInput("sampleSize", "Sample size per group", choices = c("10" = 10, "20" = 20, "60" = 60, "100" = 100))
-    # )),
-    # column(width = 12, align = "center",
-    #        actionButton("sample", "Sample data")
+      column(width = 3, align = "left",
+             actionButton("sample", "Different sample")),
+      conditionalPanel(condition = "input$tabselected==1", column(width = 3, align = "left", uiOutput("dataFormUI"))
+      )
      )
 ),
 
 ### Tab within page setup #####
 tabsetPanel(
-  tabPanel("Data",
-           box(width = 3, align = "left", radioButtons("dataForm", "Data format", choices = c("Group coding" = 1, "Dummy coding" = 2))),
-           uiOutput("dataTab")),
-  tabPanel("Plot",
-plotOutput("Plots")),
-  tabPanel("Output",
+  tabPanel("Data", value = 1,
+           column(width = 3),
+           column(width = 6, align = "center",
+           uiOutput("dataTab"),
+           inline = T),
+           column(width = 3)),
+  tabPanel("Plot", value = 2,
+plotOutput("Plots"),
+uiOutput("SelectReg")),
+  tabPanel("Output", value = 3,
            fluidRow(
-             column(width = 6, align = "center", textOutput("regSum")),
-             column(width = 6, align = "center", textOutput("aovSum"))
-           ))
-  # tabPanel("Hypotheses",
-  #          fluidRow(
-  #            column(width = 3, align = "center", textOutput("H0R")),
-  #            column(width = 3, align = "center", textOutput("H0A"))           ))
-),
+             column(width = 6, align = "center", verbatimTextOutput("regSum")),
+             column(width = 6, align = "center", verbatimTextOutput("aovSum"))
+           )),
+id = "tabselected"),
 
 ### MODEL equation fixed at bottom
 box(width = 12, 
-    column(width = 6, align = "center", h4("Regression")),
-    column(width = 6, align = "center", h4("ANOVA")),
+    column(width = 6, align = "center", h3("Regression")),
+    column(width = 6, align = "center", h3("ANOVA")),
     column(width = 6, align = "center", textOutput("modelR")),
     column(width = 6, align = "center", textOutput("modelA")),
-    textOutput("TextGroup"),
-    textOutput("TextModelAbs"),
-    textOutput("TextModelNum"))
-
+    column(width = 6, align = "center", textOutput("modelRnum")),
+    column(width = 6, align = "center", textOutput("modelAnum"))
+)
 # ##### Step 2a Hypotheses #####
 
 

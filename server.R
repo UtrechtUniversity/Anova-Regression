@@ -40,6 +40,7 @@ groups <- list("Null" = c(NULL),
 colcode <- brewer.pal(4, "Dark2")
 # sample size per group
 sampSize <- 15
+DV <- "Score"
 
 ###########################
 # Server
@@ -51,23 +52,39 @@ server <- function(input, output) {
   
 Ngroups <- reactive({as.numeric(input$Ngroups)})
 
+Ntotal <- reactive({sampSize * Ngroups()})
+
 output$refGroupUI <- renderUI({
   radioButtons("refGroup", "Reference group", choices = groups[[Ngroups()]], selected = groups[[Ngroups()]][1])
 })
 
+output$dataFormUI <- renderUI({
+  if(input$tabselected == 1){
+  radioButtons("dataForm", "Data format", choices = c("Group coding" = 1, "Dummy coding" = 2))
+  } else {
+      NULL
+    }
+  })
+
+
 refGroup <- reactive({input$refGroup})
 
+allGroups <- reactive({groups[[Ngroups()]]})
+
+allButRef <- reactive({allGroups()[-which(allGroups() == refGroup())]})
 
 data <- reactive({
   set.seed(123 + input$sample)
   means <- rep(sample(efsizes, Ngroups(), replace = F), each = sampSize)
-  Score <- rnorm(sampSize*Ngroups(), means, 1)
-  data.frame(Score = Score, Group = factor(rep(paste(groups[[Ngroups()]]), each = sampSize)))
+  Score <- rnorm(Ntotal(), means, 1)
+  x <- data.frame(Score = Score, Group = factor(rep(paste(allGroups()), each = sampSize)))
+  colnames(x) <- c(DV, "Group")
+  x
 })
 
 dataDumm <- reactive({
   x <- cbind("Score" = data()[,1], model.matrix(~Group-1, data()))
-  colnames(x) <- c("Score", paste0("Dummy", groups[[Ngroups()]]))
+  colnames(x) <- c(DV, paste0("Dummy", allGroups()))
   data.frame(x)
 })
 
@@ -76,23 +93,21 @@ dataDumm <- reactive({
 dataFormat <- reactive({as.numeric(input$dataForm)})
 
 output$dataTab <- renderUI({
-  # if(is.null(input$sample)){return(NULL)}
   set.seed(10)
-  rowSelect <- sample(1:(Ngroups()*sampSize), 10, replace = F)
+  rowSelect <- sample(1:(Ntotal()), 10, replace = F)
   if(dataFormat() == 2){
     dataT <- dataDumm()[, -which(names(dataDumm()) %in% paste0("Dummy", refGroup()))]
   } else {
     dataT <- data()
   }
 tab <- dataT[rowSelect,]
+tab[1] <- round(tab[1],2)
 rownames(tab) <- NULL
   # define CSS tags
 csstext <- paste0("\"#", groups[[Ngroups()]], " {color: ", colcode[1:Ngroups()], ";}\"", collapse = ", ")
   css <- paste0("c(", csstext, ")", collapse = "")
-  
   # add the tag inside the cells
   tab <- apply(tab, 2, function(x) paste(x, paste("#", data()[rowSelect,2], sep ="")))
-  
   # generate html table with pander package and markdown package
   htmltab <- markdownToHTML(
     text = pandoc.table.return(
@@ -106,20 +121,18 @@ csstext <- paste0("\"#", groups[[Ngroups()]], " {color: ", colcode[1:Ngroups()],
 
 ##### Plot tab #####
 output$Plots <- renderPlot({
-  
   # data manipulation #####
   width_of_things <- .1    # jitter
-  
   mean_df <- data.frame(aggregate(data()$Score, by = list(data()$Group), FUN=mean), grandmean = mean(data()$Score))
   names(mean_df) <- c("Group", "groupmean", "grandmean")
   mean_df$GroupC <- as.numeric(mean_df$Group) # numeric group for axis
-  mean_df$refmean <- mean_df$groupmean[which(as.numeric(mean_df$Group) == refGroup())[1]] # reference mean (intercept)
-  mean_df$dumm <- ifelse(mean_df$GroupC == refGroup(), 0, 1) # dummy coding reference group or not
-  print(mean_df$dumm)
-  mean_df_ref <- mean_df[mean_df$dumm == 1,] # subset containing only other than reference group data
-
+  mean_df$refmean <- mean_df$groupmean[which(mean_df$Group == refGroup())[1]] # reference mean (intercept)
+  mean_df$dumm <- ifelse(mean_df$groupmean == mean_df$refmean, 0, 1) # dummy coding reference group or not
+refmean <- mean_df$refmean[1]
+plotmean <- mean_df$groupmean[mean_df$Group == plotReg()][1]-refmean
+  # create dataset merged with the group and grand mean and reference coding
   dataM <- merge(data(), mean_df, by = "Group")
-  dataM$dumm <- ifelse(as.numeric(dataM$Group) == refGroup(), 0, 1)
+  dataM$dumm <- ifelse(dataM$Group == refGroup(), 0, 1) # column indicating whether case is in reference group or not
   dataM$dummC <- as.numeric(dataM$dumm)+rnorm(sampSize*Ngroups(), sd = .5*width_of_things)
   dataM$GroupC <- as.numeric(dataM$Group)+rnorm(sampSize*Ngroups(), sd = .5*width_of_things)
 
@@ -149,7 +162,7 @@ output$Plots <- renderPlot({
         yend = grandmean),
       colour = "black",
       linetype = 1,
-      size = .5) +    
+      size = 1) +    
 
     # longer reference group line #####
     geom_segment(
@@ -162,21 +175,21 @@ output$Plots <- renderPlot({
       ),
       colour = colcode[refGroup()],
       linetype = 2,
-      size = .5
+      size = 1
     ) + 
     
     # difference Scores #####
     geom_segment(
-      data = mean_df_ref,
+      data = mean_df,
       aes(
         x = GroupC,
         xend = GroupC,
         y = groupmean,
-        yend = refmean,
-        colour = Group
+        yend = grandmean
       ),
+      colour = "black",
       linetype = 3,
-      size = .5
+      size = 1
     ) +
     
     # colour scale #####
@@ -185,9 +198,9 @@ output$Plots <- renderPlot({
     # theme labels and axes #####
       theme_bw() +
       scale_x_continuous(breaks = 1:Ngroups(),
-                       label = names(data()$Group)) + 
+                       labels = allGroups()) + 
       theme(axis.title.x = element_blank())
-  
+
  # end anova plot #####
   
   # regression plot #####
@@ -208,23 +221,19 @@ output$Plots <- renderPlot({
       linetype = 1,
       size = 1
     ) + 
+    geom_abline(intercept = refmean, slope = plotmean,
+                linetype = 1,
+                size = 1) +
     
     # regression lines #####
-    geom_segment(
-      data = mean_df_ref, aes(
-        x = 0, 
-        xend = 1, 
-        y = refmean, 
-        yend = groupmean,
-        color = Group)
-    ) + 
+
     # scale color #####
     scale_color_manual(values = colcode) +
     
     # theme labels and axes #####
     theme_bw() +
     scale_x_continuous(breaks = 0:1,
-                       label = c("Reference group", "Dummy")) + 
+                       labels = c("0", "1")) + 
     theme(axis.title.x = element_blank())
 # end regression plot #####
   
@@ -232,123 +241,59 @@ output$Plots <- renderPlot({
   grid.arrange(reg_plot, aov_plot, ncol = 2)
 })
 
+output$SelectReg <- renderUI({
+  radioButtons("selectReg", "Show the regression line for...", choices = allGroups()[-which(allGroups() == refGroup())])
+})
+
+plotReg <- reactive(input$selectReg)
+
 ##### Output tab #####
-
-##### Hypotheses tab #####
-# output$H0R <- renderText({
-#   betas <- paste("b", 1:(Ngroups()-1), sep = "", collapse = " = ")
-#   paste("H0: ", betas,"= 0")
-# })
-# output$H0A <- renderText({
-#   mus <- paste("mean", 1:Ngroups(), sep = "", collapse = " = ")
-#   paste("H0: ", mus)
-# })
-
 
 ##### Model banner #####
 
   output$modelR <- renderText({
-    # dummies <- paste("D", 1:(Ngroups()))
-    # reg <- paste("b", 1:(Ngroups()-1), "*", dummies[-refGroup()], sep = "", collapse = " + ")
-    # paste("Score = b0 + ", reg, "+ e", sep = "")
+    reg <- paste("b", 1:(Ngroups()-1), "* Dummy", allButRef(), sep = "", collapse = " + ")
+    paste("Predicted ", DV, " = b0 + ", reg, sep = "")
   })
 
   output$modelA <- renderText({
-    mus <- paste("mean", 1:Ngroups(), "*D", 1:Ngroups(), sep = "", collapse = " + ")
-    paste("Score = ", mus, " + e", sep = "")
+    mus <- paste("Mean", allGroups(), "* Dummy", allGroups(), sep = "", collapse = " + ")
+    paste("Predicted ", DV, " = ", mus, sep = "")
+  })
+  
+  #  plot maken
+  linMod <- reactive({
+    dataR <- within(data(), Group <- relevel(Group, ref = refGroup()))
+    eval(parse(text = paste("lm(", DV, "~Group, dataR)")))
+  })
+  
+  output$modelRnum <- renderText({
+    reg <- paste(round(linMod()$coefficients[-1], 2), "* Dummy", allButRef(), sep = "", collapse = " + ")
+    paste("Predicted ", DV, " = ", round(linMod()$coefficients[1], 2)," + ", reg, sep = "")
+  })
+  
+  aovMod <- reactive({
+    eval(parse(text = paste("lm(", DV, "~Group-1, data())")))
   })
 
-
-
-
-# Step 2 Sample data ----
-
+  output$modelAnum <- renderText({
+    mus <- paste(round(aovMod()$coefficients, 2), "* Dummy", allGroups(), sep = "", collapse = " + ")
+    paste("Predicted ", DV, " = ", mus, sep = "")
+  })
 
 # Step 3 Output #####
  
-  ###############################
-  ###############################
-  ##############################
-# #  plot maken
-#   linMod <- reactive({
-#     lm(Score~group, data())
-#   })
-# 
-#   
-#   output$regPlot <- renderPlot({
-#     g <- ggplot(data(), aes(x = group, y = Score)) + theme_minimal()
-#     g + geom_abline(slope = linMod()$coefficients[2], intercept = linMod()$coefficients[1], label = "b1")
-#   })
+
   
   # Step 3b text output #####
-regSumT <- eventReactive(input$sample, {
-  summary(linMod())
-})
-  
-  output$regSum <- renderText(paste(regSumT()))
-  
-  
-# REMAINING CODE #####  
+# output$regSum <- renderPrint({
+#   print(summary(linMod()))
+#   summary(linMod())
+# })
 # 
-#   
-# # second section 
-# 
-# 
-# #   ## #input 
-#   ngroups <- reactive(as.numeric(input$Ngroups))
-#   N <- reactive(as.numeric(input$N))
-#   
-#   data <- eventReactive(input$genData, {
-#     Score <- rnorm(N()*ngroups(), 0, 1)
-#     group <- factor(rep(1:ngroups(), each = N()), labels = rep(paste0("Group", 1:ngroups())))
-#     modelM <- model.matrix(~group)
-#     dataM <- data.frame(cbind(Score, group, modelM))
+#   output$aovSum <- renderPrint({
+#     summary(aovMod())
 #   })
 #   
-#   means <- reactive({
-#     data.frame(
-#       data()%>%
-#       group_by(group) %>%
-#       summarise(Mean = mean(Score), 
-#                 se = sd(Score)/sqrt(length(Score)), 
-#                 n = length(Score)) %>%
-#       mutate(Group = factor(group))
-#       )
-#   })
-#     
-#     base_means <- reactive({
-#     g <- ggplot(data(), aes(x = group, y = Score)) + theme_minimal()
-#     # # gg <- ggplot(means(), aes(x = Group, y = Mean)) + theme_minimal()
-#     # gg <- g + geom_point(aes(x = group, y = Score))
-#     # gg <- ggplot(means(), aes(x= Group, y = Mean)) + theme_minimal()
-#     
-#   })
-#     
-#     base_reg <- reactive({
-#       fit <- lm(Score~groupGroup2, data())
-#     })
-#   
-#   
-#   # text hypotheses
-# #   output$H_aov <- renderText({
-# # "    Htest"
-# #     })
-# #   output$H_reg <- renderText({
-# #     "Htest"
-# #   })
-# 
-#   output$Fig_aov <- renderPlot({
-#     # gg <- ggplot(means(), aes(x= Group, y = Mean)) + theme_minimal()
-#     # base_means() + geom_crossbar(data = means(), aes(x = Group, y = Mean, ymin = Mean - 2*se, ymax = Mean + 2*se, color = Group, fill = Group)) + 
-#     #   ylab("Mean Score") + ggtitle("Means and standard errors")
-#     base_means() + geom_crossbar(data = means(), aes(x = Group, y = Mean, ymin = Mean - 2*se, ymax = Mean + 2*se, color = Group)) + 
-#                    geom_point(data = data(), aes(x = factor(group), y = Score, color = factor(group))) +
-#       ylab("Mean Score") + ggtitle("Means and standard errors")
-#   })
-#   
-#   output$Fig_reg <- renderPlot({
-#     base_means() + geom_point(data = data(), aes(x = factor(group-1), y = Score, color = factor(group-1))) +
-#                    stat_smooth(data = data(), aes(x = groupGroup2, y = Score), method = "lm")
-#   })
 }
 
