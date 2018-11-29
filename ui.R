@@ -20,37 +20,34 @@ uu_color <- " #ffcd00"
 
 
 ui <- dashboardPage(
-# Appearance I #####
-    skin = "black",
+  # Appearance I #####
+  skin = "black",
   
-dashboardHeader(title = "ANOVA and Regression equivalence", titleWidth = 350),
-dashboardSidebar(width = 350,
-                 sidebarMenu(
-                   menuItem("ANOVA = Regression", tabName = "tab1"),
-                   menuItem("Disclaimer", tabName = "Disclaimer"),
-                   HTML("<br><br><br><br><br><br><br><br><br><br><br><br><br><br>"),
-                   img(src = 'cm_hs_uu-logoengels_diapositief_rgb.png', align = "left"),
-                   HTML("<br><br><br><br><br><br><br><br><br><br><br><br><br><br>"),
-                   
-                   div("Shiny app by",
-                       a(href="https://www.uu.nl/staff/FKlaassen/0",
-                         target = "_blank",
-                         "Fayette Klaassen"),align="left", style = "font-size: 10pt"),
-                   
-                   div("Base Layout by",
-                       a(href="https://www.uu.nl/medewerkers/KMLek/0",target="_blank",
-                         "Kimberley Lek"),align="left", style = "font-size: 10pt"),
-                   
-                   div("Shiny source files:",
-                       a(href="https://github.com/EducationalShinyUU/ANOVA-Regression",
-                         target="_blank","GitHub"),align="left", style = "font-size: 10pt")
-                  
-     ### you can easily add extra tabs by including an extra "menuItem("...", tabName = "")," before the disclaimer ###
-      ### you can remove or add <br> statements in the HTML function (menuItem("Disclaimer")) to adjust the position of the UU logo (make sure it is approximately at the bottom of the screen when opened)
-    )
+  dashboardHeader(title = "ANOVA and Regression equivalence", titleWidth = 350),
+  dashboardSidebar(width = 350,
+                   sidebarMenu(
+                     menuItem("ANOVA = Regression", tabName = "tab1"),
+                     menuItem("Disclaimer", tabName = "Disclaimer"),
+                     HTML("<br><br><br><br><br><br><br><br><br><br><br><br><br><br>"),
+                     img(src = 'cm_hs_uu-logoengels_diapositief_rgb.png', align = "left"),
+                     HTML("<br><br><br><br><br><br><br><br><br><br><br><br><br><br>"),
+                     
+                     div("Shiny app by",
+                         a(href="https://www.uu.nl/staff/FKlaassen/0",
+                           target = "_blank",
+                           "Fayette Klaassen"),align="left", style = "font-size: 10pt"),
+                     
+                     div("Base Layout by",
+                         a(href="https://www.uu.nl/medewerkers/KMLek/0",target="_blank",
+                           "Kimberley Lek"),align="left", style = "font-size: 10pt"),
+                     
+                     div("Shiny source files:",
+                         a(href="https://github.com/EducationalShinyUU/ANOVA-Regression",
+                           target="_blank","GitHub"),align="left", style = "font-size: 10pt")
+                   )
   ),
   
-# Appearance II #####  
+  # Appearance II #####  
   dashboardBody(
     # CSS styles
     tags$style(HTML(".irs-bar {background: uu_color}")),
@@ -114,7 +111,7 @@ dashboardSidebar(width = 350,
       )
       )),
     
-# Tab layout #####
+    # Tab layout #####
     tabItems(
       tabItem(tabName = "Disclaimer", box(
         width = 12,
@@ -136,96 +133,62 @@ dashboardSidebar(width = 350,
           )
         )
       )),
-      # tabItem(tabName = "home", box(
-      #   width = 12,
-      #   align = "center",
-      #   h4("Welcome"),
-      #   column(12, align = "left", h5("add app background info"))
-      # )),
-## Tab 1 AOV = REG #####      
       tabItem(
         tabName = "tab1",
         
-### input / settings #####
+        ### Settings #####
         
-box(width = 13, align = "center",
-    h4("ANOVA = Regression"),
-    column(12, align = "left", h4("Input / settings")),
-    
-    fluidRow(
-      column(width = 3, align = "left",
-             radioButtons("Ngroups", "Number of groups", choices = c("2" = 2, "3" = 3, "4" = 4))
-      ),
-      column(width = 3, align = "left", 
-             uiOutput("refGroupUI")
-      ),
-      column(width = 3, align = "left",
-             actionButton("sample", "Different sample")),
-      conditionalPanel(condition = "input$tabselected==1", column(width = 3, align = "left", uiOutput("dataFormUI"))
+        box(width = 13, align = "center",
+            h4("ANOVA = Regression"),
+            column(12, align = "left", 
+                   h4("Settings")),
+            fluidRow(
+              column(width = 3, align = "left",
+                     radioButtons("Ngroups", "Number of groups", choices = c("2" = 2, "3" = 3, "4" = 4))
+              ),
+              column(width = 3, align = "left", 
+                     uiOutput("refGroupUI")
+              ),
+              conditionalPanel(condition = "input$tabselected==1 || input$tabselected == 2", 
+                               column(width = 3, align = "left", 
+                                      uiOutput("dataFormUI"))
+              ),
+              column(width = 3, align = "left",
+                     actionButton("sample", "Different sample"))
+            )
+        ),
+        ### Tab within page setup #####
+        tabsetPanel(
+          tabPanel("Data", value = 1,
+                   column(width = 3),
+                   column(width = 6, align = "center",
+                          box(
+                            uiOutput("dataTab"),
+                            inline = T)),
+                   column(width = 3)),
+          tabPanel("Plot", value = 2,
+                   plotOutput("Plots")),
+          tabPanel("Output", value = 3,
+                   box(
+                     column(width = 12, h4("Regression")),
+                     column(width = 12, tableOutput("regout")),
+                     column(width = 12, tableOutput("regest"))),
+                   box(
+                     column(width = 12, h4("ANOVA")),
+                     column(width = 12, tableOutput("AOVout")),
+                     column(width = 12, tableOutput("AOVmeans"))
+                   )),
+          id = "tabselected"),
+        
+        box(
+          column(width = 12, h4("Regression equation"), textOutput("modelR"), h4(""), textOutput("modelRnum"))
+        ),
+        box(column(width = 12, h4("ANOVA equation"), textOutput("modelA"), h4(""), textOutput("modelAnum"))
+        )
+        
       )
-     )
-),
-
-### Tab within page setup #####
-tabsetPanel(
-  tabPanel("Data", value = 1,
-           column(width = 3),
-           column(width = 6, align = "center",
-           uiOutput("dataTab"),
-           inline = T),
-           column(width = 3)),
-  tabPanel("Plot", value = 2,
-plotOutput("Plots"),
-uiOutput("SelectReg")),
-  tabPanel("Output", value = 3,
-           fluidRow(
-             column(width = 6, align = "center", verbatimTextOutput("regSum")),
-             column(width = 6, align = "center", verbatimTextOutput("aovSum"))
-           )),
-id = "tabselected"),
-
-### MODEL equation fixed at bottom
-box(width = 12, 
-    column(width = 6, align = "center", h3("Regression")),
-    column(width = 6, align = "center", h3("ANOVA")),
-    column(width = 6, align = "center", textOutput("modelR")),
-    column(width = 6, align = "center", textOutput("modelA")),
-    column(width = 6, align = "center", textOutput("modelRnum")),
-    column(width = 6, align = "center", textOutput("modelAnum"))
-)
-# ##### Step 2a Hypotheses #####
-
-
- 
-##### Step 2 Data sampling #####       
-
-
-##### Step 3 Output #####        
-
-
-
-      #   
-      # ),
-      # tabItem(tabName = "tab2", box(
-      #   width = 12,
-      #   align = "center",
-      #   h4("add title"),
-      #   column(12, align = "left", h5("add content"))
-      # )),
-      # tabItem(tabName = "tab3", box(
-      #   width = 12,
-      #   align = "center",
-      #   h4("add title"),
-      #   column(12, align = "left", h5("add content"))
-      # ))
-      
-      ### If needed, you can add extra tabItems above by simply adding an extra "tabItem(tabName = ...., box(...))" statement (don't forget to add a comma at the end of "tab3")
-      
     )
-      )
-
-
-
-)
-#####
-)
+    
+      )  
+  #####
+    )
