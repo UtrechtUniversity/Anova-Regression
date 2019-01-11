@@ -8,7 +8,7 @@ library(tidyr)
 library(dplyr)
 library(RColorBrewer)
 library(gridExtra)
-library(highlightHTML)
+#library(highlightHTML)
 library(pander)
 library(markdown)
 library(stringr)
@@ -143,23 +143,22 @@ ui <- dashboardPage(
             column(12, align = "left", 
                    h4("Settings")),
             fluidRow(
-              column(width = 3, align = "left",
+              column(width = 4, align = "left",
                      radioButtons("Ngroups", "Number of groups", choices = c("2" = 2, "3" = 3, "4" = 4))
               ),
-              column(width = 3, align = "left", 
+              column(width = 4, align = "left", 
                      uiOutput("refGroupUI")
               ),
-              conditionalPanel(condition = "input$tabselected==1 || input$tabselected == 2", 
-                               column(width = 3, align = "left", 
-                                      uiOutput("dataFormUI"))
-              ),
-              column(width = 3, align = "left",
+              column(width = 4, align = "left",
                      actionButton("sample", "Different sample"))
             )
         ),
+        
         ### Tab within page setup #####
         tabsetPanel(
           tabPanel("Data", value = 1,
+                   column(width = 12, radioButtons("dataForm", "Data format", 
+                                                   choices = c("Group coding" = 1, "Dummy coding" = 2))),
                    column(width = 3),
                    column(width = 6, align = "center",
                           box(
@@ -167,6 +166,7 @@ ui <- dashboardPage(
                             inline = T)),
                    column(width = 3)),
           tabPanel("Plot", value = 2,
+                   uiOutput("regPlot"),
                    plotOutput("Plots")),
           tabPanel("Output", value = 3,
                    box(
@@ -179,12 +179,14 @@ ui <- dashboardPage(
                      column(width = 12, tableOutput("AOVmeans"))
                    )),
           id = "tabselected"),
-        
+
         box(
           column(width = 12, h4("Regression equation"), textOutput("modelR"), h4(""), textOutput("modelRnum"))
+          # , h4(""), textOutput("modelRref"))
         ),
         box(column(width = 12, h4("ANOVA equation"), textOutput("modelA"), h4(""), textOutput("modelAnum"))
-        )
+            # , h4(""), textOutput("modelAref"))
+
         
       )
     )
@@ -192,3 +194,4 @@ ui <- dashboardPage(
       )  
   #####
     )
+)

@@ -5,8 +5,8 @@ account: utrecht-university
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 362443
-bundleId: 1447969
+bundleId: 1807890
 url: https://utrecht-university.shinyapps.io/Anova-Regression/
-when: 1529946051.84034
+when: 1547164885.38728
 asMultiple: FALSE
 asStatic: FALSE

@@ -36,6 +36,11 @@ groups <- list("Null" = c(NULL),
                "Gender" = c("Female", "Male"), 
                "Condition" = c("Control", "Experimental", "Placebo"), 
                "Diet" = c("Omnivore", "Pescetarian", "Vegan", "Vegetarian"))
+groupsShort <- list("Null" = c(NULL), 
+               "Gender" = c("Fe", "Ma"), 
+               "Condition" = c("Co", "Ex", "Pl"), 
+               "Diet" = c("Om", "Pe", "Vn", "Vt"))
+
 # colour palette
 colcode <- brewer.pal(4, "Dark2")
 # sample size per group
@@ -47,63 +52,83 @@ DV <- "Score"
 ###########################
 
 server <- function(input, output) {
-  
-# obtain input ####
-  Ngroups <- reactive({as.numeric(input$Ngroups)})
-  Ntotal <- reactive({sampSize * Ngroups()})
-  
+  # 
+  # # obtain input ####
+  # Ngroups <- reactive({as.numeric(input$Ngroups)})
+  # Ntotal <- reactive({sampSize * as.numeric(input$Ngroups)})
+
   output$refGroupUI <- renderUI({
-    radioButtons("refGroup", "Reference group", choices = groups[[Ngroups()]], selected = groups[[Ngroups()]][1])
+    cur_Ngroups <- as.numeric(input$Ngroups)
+     radioButtons("refGroup", "Reference group", 
+                  choices = groups[[cur_Ngroups]], 
+                  selected = groups[[cur_Ngroups]][1])
   })
-  
-  refGroupF <- reactive({input$refGroup})
-  allGroups <- reactive({groups[[Ngroups()]]})
-  allButRef <- reactive({allGroups()[-which(allGroups() == refGroupF())]})
-  
-  output$dataFormUI <- renderUI({
-    if(input$tabselected == 1){
-      radioButtons("dataForm", "Data format", choices = c("Group coding" = 1, "Dummy coding" = 2))
-    } else {
-      if(input$tabselected == 2){
-        radioButtons("selectReg", "Show the regression line for...", choices = allGroups()[-which(allGroups() == refGroupF())])
-      } else{
-        NULL
-      }
-    }
-  })
-  
-# sample data #####  
+# 
+#   refGroupF <- reactive({input$refGroup})
+#   allGroups <- reactive({groups[[as.numeric(input$Ngroups)]]})
+#   allButRef <- reactive({groups[[as.numeric(input$Ngroups)]][-which(groups[[as.numeric(input$Ngroups)]] == input$refGroup)]})
+
+  # output$dataFormUI <- renderUI({
+  #   if(input$tabselected == 1){
+  #     radioButtons("dataForm", "Data format", choices = c("Group coding" = 1, "Dummy coding" = 2))
+  #   } else {
+  #     if(input$tabselected == 2){
+  #       radioButtons("selectReg", "Show the regression line for...", choices = as.numeric(input$Ngroups)[-which(as.numeric(input$Ngroups) == input$refGroup)])
+  #     } else{
+  #       NULL
+  #     }
+  #   }
+  # })
+  # 
+  # 
+  # 
+  # # sample data #####  
   data <- reactive({
+
+    cur_Ngroups <- as.numeric(input$Ngroups)
+    cur_allGroups <- groups[[as.numeric(input$Ngroups)]]
+
     set.seed(123 + input$sample)
-    means <- rep(sample(efsizes, Ngroups(), replace = F), each = sampSize)
-    Score <- rnorm(Ntotal(), means, 1)
-    x <- data.frame(Score = Score, Group = factor(rep(paste(allGroups()), each = sampSize)))
-    colnames(x) <- c(DV, "Group")
-    x
+
+    means <- rep(sample(efsizes, cur_Ngroups, replace = F), each = sampSize)
+    Score <- rnorm(sampSize * cur_Ngroups, means, 1)
+    df <- data.frame(Score = Score, Group = factor(rep(paste(cur_allGroups), each = sampSize)))
+    colnames(df) <- c(DV, "Group")
+    return(df)
   })
-  
+  # 
   dataDumm <- reactive({
-    x <- cbind("Score" = data()[,1], model.matrix(~Group-1, data()))
-    colnames(x) <- c(DV, paste0("D.", allGroups()))
-    data.frame(x)
+    cur_data <- data()
+    cur_allGroups <- groups[[as.numeric(input$Ngroups)]]
+
+    df <- cbind("Score" = data()[,1], model.matrix(~Group-1, cur_data))
+    colnames(df) <- c(DV, paste0("D.", cur_allGroups))
+    return(data.frame(df))
   })
-  
-##### Data tab #####
+  # 
+  # ##### Data tab #####
   dataFormat <- reactive({as.numeric(input$dataForm)})
-  
+
   output$dataTab <- renderUI({
     set.seed(10)
-    rowSelect <- sample(1:(Ntotal()), 10, replace = FALSE)
-    if(identical(dataFormat(), 2)){
-      dataT <- dataDumm()[, -which(names(dataDumm()) %in% paste0("D.", refGroupF()))]
+    cur_Ntotal <- sampSize * as.numeric(input$Ngroups)
+    cur_Ngroups <- as.numeric(input$Ngroups)
+    cur_dataFormat <- as.numeric(input$dataForm)
+    cur_data <- data()
+    cur_dataDumm <- dataDumm()
+    cur_refGroupF <- input$refGroup
+
+    rowSelect <- sample(1:cur_Ntotal, 10, replace = FALSE)
+    if(identical(cur_dataFormat, 2)){
+      dataT <- cur_dataDumm[, -which(names(cur_dataDumm) %in% paste0("D.", cur_refGroupF))]
     } else {
-      dataT <- data()
+      dataT <- cur_data
     }
     tab <- dataT[rowSelect,]
     tab[1] <- round(tab[1],2)
     rownames(tab) <- NULL
     # define CSS tags
-    csstext <- paste0("\"#", groups[[Ngroups()]], " {color: ", colcode[1:Ngroups()], ";}\"", collapse = ", ")
+    csstext <- paste0("\"#", groups[[cur_Ngroups]], " {color: ", colcode[1:cur_Ngroups], ";}\"", collapse = ", ")
     css <- paste0("c(", csstext, ")", collapse = "")
     # add the tag inside the cells
     tab <- apply(tab, 2, function(x) paste(x, paste("#", data()[rowSelect,2], sep ="")))
@@ -117,33 +142,46 @@ server <- function(input, output) {
     )
     colortable(htmltab, eval(parse(text = css)))
   })
-  
-##### Plot tab #####
-  plotReg <- reactive(input$selectReg)
-  
+  # 
+  # ##### Plot tab #####
+  output$regPlot <- renderUI({
+    cur_refGroupF <- input$refGroup
+    cur_allGroups <- groups[[as.numeric(input$Ngroups)]]
+    if(cur_refGroupF %in% cur_allGroups){
+    radioButtons("selectReg", "Show the regression line for...", 
+                 choices = cur_allGroups[-which(cur_allGroups == cur_refGroupF)])}
+  })
+
   output$Plots <- renderPlot({
+    cur_data <- data()
+    cur_Ngroups <- as.numeric(input$Ngroups)
+    cur_refGroupF <- input$refGroup
+    cur_plotReg <- input$selectReg
+    cur_allGroups <- groups[[as.numeric(input$Ngroups)]]
+
     # data manipulation #####
-    width_of_things <- .05*Ngroups()    # jitter
-    mean_df <- data.frame(aggregate(data()$Score, by = list(data()$Group), FUN=mean), grandmean = mean(data()$Score))
+    width_of_things <- .05*cur_Ngroups    # jitter
+    mean_df <- data.frame(aggregate(cur_data$Score, by = list(cur_data$Group), FUN=mean),
+                          grandmean = mean(cur_data$Score))
     names(mean_df) <- c("Group", "groupmean", "grandmean")
     mean_df$GroupC <- as.numeric(mean_df$Group) # numeric group for axis
-    mean_df$refmean <- mean_df$groupmean[which(mean_df$Group == refGroupF())[1]] # reference mean (intercept)
+    mean_df$refmean <- mean_df$groupmean[which(mean_df$Group == cur_refGroupF)[1]] # reference mean (intercept)
     mean_df$dumm <- ifelse(mean_df$groupmean == mean_df$refmean, 0, 1) # dummy coding reference group or not
     refmean <- mean_df$refmean[1]
-    plotmean <- mean_df$groupmean[mean_df$Group == plotReg()][1]-refmean
+    plotmean <- mean_df$groupmean[mean_df$Group == cur_plotReg][1]-refmean
     dummmeans <- mean_df$groupmean[mean_df$dumm==1]-refmean
     # create dataset merged with the group and grand mean and reference coding
-    dataM <- merge(data(), mean_df, by = "Group")
-    dataM$dumm <- ifelse(dataM$Group == refGroupF(), 0, 1) # column indicating whether case is in reference group or not
+    dataM <- merge(cur_data, mean_df, by = "Group")
+    dataM$dumm <- ifelse(dataM$Group == cur_refGroupF, 0, 1) # column indicating whether case is in reference group or not
     set.seed(1305)
-    dataM$dummC <- as.numeric(dataM$dumm)+rnorm(sampSize*Ngroups(), sd = .5*width_of_things)
+    dataM$dummC <- as.numeric(dataM$dumm)+rnorm(sampSize*cur_Ngroups, sd = .5*width_of_things)
     set.seed(1305)
-    dataM$GroupC <- as.numeric(dataM$Group)+rnorm(sampSize*Ngroups(), sd = .5*width_of_things)
-    
-    # anova plot ##### 
-    aov_plot <- ggplot(dataM, aes(x = GroupC, y = Score)) + 
-      # individual points 
-      geom_point(aes(colour = Group, pch = Group)) + 
+    dataM$GroupC <- as.numeric(dataM$Group)+rnorm(sampSize*cur_Ngroups, sd = .5*width_of_things)
+
+    # anova plot #####
+    aov_plot <- ggplot(dataM, aes(x = GroupC, y = Score)) +
+      # individual points
+      geom_point(aes(colour = Group, pch = Group)) +
       # group means
       geom_segment(
         data = mean_df, aes(
@@ -153,30 +191,30 @@ server <- function(input, output) {
           yend = groupmean,
           colour = Group),
         linetype = 1,
-        size = 1)  + 
-      # grand mean 
+        size = 1)  +
+      # grand mean
       geom_segment(
         data = mean_df, aes(
           x = 1 - (1.5 * width_of_things),
-          xend = Ngroups() + (1.5 * width_of_things),
+          xend = cur_Ngroups + (1.5 * width_of_things),
           y = grandmean,
           yend = grandmean),
         colour = "black",
         linetype = 1,
-        size = 1) +    
+        size = 1) +
       # longer reference group line
       geom_segment(
         data = mean_df,
         aes(
           x = 1 - (1.5 * width_of_things),
-          xend = Ngroups() + (1.5 * width_of_things),
+          xend = cur_Ngroups + (1.5 * width_of_things),
           y = refmean,
           yend = refmean
         ),
-        colour = colcode[refGroupF()],
+        colour = colcode[cur_refGroupF],
         linetype = 2,
         size = 1
-      ) + 
+      ) +
       # difference Scores
       geom_segment(
         data = mean_df,
@@ -190,19 +228,19 @@ server <- function(input, output) {
         linetype = 2,
         size = 1
       ) +
-      #colour scale 
+      #colour scale
       scale_color_manual(values = colcode) +
       # theme labels and axes
       theme_bw() +
-      scale_x_continuous(breaks = 1:Ngroups(),
-                         labels = allGroups()) + 
+      scale_x_continuous(breaks = 1:cur_Ngroups,
+                         labels = cur_allGroups) +
       theme(axis.title.x = element_blank())
-    
+
     # regression plot #####
-    reg_plot <- ggplot(dataM, aes(x = dummC, y = Score)) + 
-      # points 
-      geom_point(aes(color = Group, pch = Group)) + 
-      # group means 
+    reg_plot <- ggplot(dataM, aes(x = dummC, y = Score)) +
+      # points
+      geom_point(aes(color = Group, pch = Group)) +
+      # group means
       geom_segment(
         data = mean_df, aes(
           x = (dumm - (1.5 * width_of_things)),
@@ -213,7 +251,7 @@ server <- function(input, output) {
         ),
         linetype = 1,
         size = 1
-      ) + 
+      ) +
       # regression lines
       geom_abline(intercept = refmean, slope = plotmean,
                   linetype = 1,
@@ -222,83 +260,110 @@ server <- function(input, output) {
       geom_abline(intercept = refmean, slope = dummmeans,
                   linetype = 2,
                   size = 1, na.rm = TRUE) +
-      # scale color 
+      # scale color
       scale_color_manual(values = colcode) +
-      # theme labels and axes 
+      # theme labels and axes
       theme_bw() +
       scale_x_continuous(breaks = 0:1,
-                         labels = c("0", "1")) + 
+                         labels = c("0", "1")) +
       theme(axis.title.x = element_blank())
     # arrange grid ####
     grid.arrange(reg_plot, aov_plot, ncol = 2)
   })
-  
-  
-##### Output tab #####
-  output$AOVout <- renderTable(rownames = TRUE, caption = "F-table",
-                               caption.placement = getOption("xtable.caption.placement", "top"), 
-                               caption.width = getOption("xtable.caption.width", NULL), {
-                                 return(anova(lm(Score ~ Group, data = data())))
-                               })
-  output$AOVmeans <- renderTable(rownames = TRUE, caption = "Means",
-                                 caption.placement = getOption("xtable.caption.placement", "top"), 
-                                 caption.width = getOption("xtable.caption.width", NULL), {
-                                   return(summary(lm(Score ~ -1+Group, data = data()))$coefficients)
-                                 })
-  
-  output$regout <- renderTable(rownames = TRUE, caption = "F-table",
-                               caption.placement = getOption("xtable.caption.placement", "top"), 
-                               caption.width = getOption("xtable.caption.width", NULL), {
-                                 if(length(refGroupF())==1){
-                                   dataR <- within(data(), Group <- relevel(Group, ref = refGroupF()))
-                                   return(anova(lm(Score ~ Group, data = dataR)))
-                                 }
-                               })
-  
-  output$regest <- renderTable(rownames = TRUE, caption = "Estimates",
-                               caption.placement = getOption("xtable.caption.placement", "top"), 
-                               caption.width = getOption("xtable.caption.width", NULL), {
-                                 if(length(refGroupF())==1){
-                                   dataR <- within(data(), Group <- relevel(Group, ref = refGroupF()))
-                                   return(summary(lm(Score ~ Group, data = dataR))$coefficients)
-                                 }
-                               })
-  
-##### Equations #####
-  
-  output$modelR <- renderText({
-    reg <- paste("b", 1:(Ngroups()-1), "* D.", allButRef(), sep = "", collapse = " + ")
-    paste0("Pred.", DV, " = b0 + ", reg, sep = "")
-  })
-  
-  output$modelA <- renderText({
-    mus <- paste("Mean.", allGroups(), "* D.", allGroups(), sep = "", collapse = " + ")
-    paste0("Pred.", DV, " = ", mus, sep = "")
-  })
-  
+  # 
+  # 
+  # ##### Output tab #####
+
+  # dataR <- reactive({if(length(refGroupF())==1){within(data(), Group <- relevel(Group, ref = refGroupF()))}})
+  # regmodel <- reactive({lm(Score~Group, data = dataR())})
+
   linMod <- reactive({
-    if(length(refGroupF())==1){
-      dataR <- within(data(), Group <- relevel(Group, ref = refGroupF()))
+    cur_refGroupF <- input$refGroup
+    if(length(cur_refGroupF)==1){
+      dataR <- within(data(), Group <- relevel(Group, ref = cur_refGroupF))
       eval(parse(text = paste("lm(", DV, "~Group, dataR)")))
     }
   })
-  
+
+  output$AOVout <- renderTable(rownames = TRUE, caption = "F-table",
+                               caption.placement = getOption("xtable.caption.placement", "top"),
+                               caption.width = getOption("xtable.caption.width", NULL), {
+                                 return(anova(lm(Score ~ Group, data = data())))
+                                 # return(anova(AOVmodel()))
+                               })
+  output$AOVmeans <- renderTable(rownames = TRUE, caption = "Means",
+                                 caption.placement = getOption("xtable.caption.placement", "top"),
+                                 caption.width = getOption("xtable.caption.width", NULL), {
+                                   return(summary(lm(Score ~ -1+Group, data = data()))$coefficients)
+                                   # return(summary(AOVmodelmeans())$coefficients)
+                                 })
+
+  output$regout <- renderTable(rownames = TRUE, caption = "F-table",
+                               caption.placement = getOption("xtable.caption.placement", "top"),
+                               caption.width = getOption("xtable.caption.width", NULL), {
+                                 # cur_refGroupF <- input$refGroup
+                                 # if(length(cur_refGroupF)==1){
+                                 #   dataR <- within(data(), Group <- relevel(Group, ref = cur_refGroupF))
+                                 #   return(anova(lm(Score ~ Group, data = dataR)))
+                                 # }
+                                 return(anova(linMod()))
+                               })
+
+  output$regest <- renderTable(rownames = TRUE, caption = "Estimates",
+                               caption.placement = getOption("xtable.caption.placement", "top"),
+                               caption.width = getOption("xtable.caption.width", NULL), {
+                                 # cur_refGroupF <- input$refGroup
+                                 # if(length(cur_refGroupF)==1){
+                                 #   dataR <- within(data(), Group <- relevel(Group, ref =cur_refGroupF))
+                                 #   return(summary(lm(Score ~ Group, data = dataR))$coefficients)
+                                 # }
+                                 return(summary(linMod())$coefficients)
+                               })
+  # 
+  # ##### Equations #####
+  # 
+  output$modelR <- renderText({
+    cur_allButRef <- groupsShort[[as.numeric(input$Ngroups)]][-which(groups[[as.numeric(input$Ngroups)]] == input$refGroup)]
+    cur_Ngroups <- as.numeric(input$Ngroups)
+    reg <- paste("b", 1:(cur_Ngroups-1), "* D", cur_allButRef, sep = "", collapse = " + ")
+    paste0("Pred = b0 + ", reg, sep = "")
+  })
+
+  output$modelA <- renderText({
+    cur_allGroups <- groupsShort[[as.numeric(input$Ngroups)]]
+    
+    mus <- paste("Mean*D.", cur_allGroups, sep = "", collapse = " + ")
+    paste0("Pred = ", mus, sep = "")
+  })
+
+
+
   output$modelRnum <- renderText({
+    cur_allButRef <- groupsShort[[as.numeric(input$Ngroups)]][-which(groups[[as.numeric(input$Ngroups)]] == input$refGroup)]
     if(length(linMod()) > 0){
-      reg <- paste(round(linMod()$coefficients[-1], 2), "* D.", allButRef(), sep = "", collapse = " + ")
-      
-      paste("Pred.", DV, " = ", round(linMod()$coefficients[1], 2)," + ", reg, sep = "")
+      reg <- paste(round(linMod()$coefficients[-1], 2), "* D.", cur_allButRef, sep = "", collapse = " + ")
+
+      paste("Pred = ", round(linMod()$coefficients[1], 2)," + ", reg, sep = "")
     }
   })
-  
+
   aovMod <- reactive({
     eval(parse(text = paste("lm(", DV, "~Group-1, data())")))
   })
-  
+
   output$modelAnum <- renderText({
-    mus <- paste(round(aovMod()$coefficients, 2), "* D.", allGroups(), sep = "", collapse = " + ")
-    paste0("Pred.", DV, " = ", mus, sep = "")
+    cur_allGroups <- groupsShort[[as.numeric(input$Ngroups)]]
+    mus <- paste(round(aovMod()$coefficients, 2), "* D.", cur_allGroups, sep = "", collapse = " + ")
+    paste0("Pred = ", mus, sep = "")
   })
+  
+  # output$modelAref <- renderText({
+  #   "Pred = Predicted score \n D.x = dummy coding group x \n Mean = group mean" 
+  # })
+  # 
+  # output$modelRref <- renderText({
+  #   "Pred = Predicted score \n b = beta coefficient" 
+  # })
   
 }
 
